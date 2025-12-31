@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>3D 蓝色圣诞树</title>
+    <style>
+        body {
+            margin: 0;
+            background: #02050a; /* 深邃夜空 */
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            perspective: 1500px; /* 增强 3D 透视感 */
+        }
+
+        /* 雪花画布 */
+        #snow-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* 3D 场景根容器 */
+        .scene {
+            position: relative;
+            width: 0;
+            height: 80vh; /* 树的高度占据屏幕 80% */
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            transform-style: preserve-3d;
+        }
+
+        /* 圣诞树旋转容器 */
+        .tree-pivot {
+            position: relative;
+            transform-style: preserve-3d;
+            animation: rotateTree 12s linear infinite;
+        }
+
+        @keyframes rotateTree {
+            from { transform: rotateY(0deg); }
+            to { transform: rotateY(360deg); }
+        }
+
+        /* 3D 树干侧面 */
+        .trunk-side {
+            position: absolute;
+            bottom: 0;
+            width: 20px;
+            height: 100px;
+            background: #5d4037; /* 棕色 */
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* 树叶样式 */
+        .leaf {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 50px solid rgba(0, 150, 255, 0.75); /* 蓝色半透明 */
+            transform-origin: bottom center;
+            filter: drop-shadow(0 0 5px rgba(0, 150, 255, 0.5));
+        }
+
+        /* 礼物包装盒样式 */
+        .gift {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            transform-style: preserve-3d;
+        }
+        .gift-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 0.5px solid rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="snow-canvas"></canvas>
+
+    <div class="scene">
+        <div class="tree-pivot" id="tree">
+            <!-- 树干和树叶将由 JS 动态生成 -->
+        </div>
+    </div>
+
+    <script>
+        const tree = document.getElementById('tree');
+        const treeHeight = window.innerHeight * 0.7; // 树的总高度
+        const trunkHeight = 100; // 树干高度
+        const crownHeight = treeHeight - trunkHeight; // 树冠高度
+
+        // 1. 生成 3D 圆柱形树干
+        const trunkSides = 12;
+        const trunkRadius = 15;
+        for (let i = 0; i < trunkSides; i++) {
+            const side = document.createElement('div');
+            side.className = 'trunk-side';
+            const angle = (i / trunkSides) * 360;
+            // 围成圆柱
+            side.style.transform = `rotateY(${angle}deg) translateZ(${trunkRadius}px)`;
+            tree.appendChild(side);
+        }
+
+        // 2. 生成三角锥形树冠 (蓝色叶片)
+        const leafRows = 25; // 纵向层数
+        const leavesPerRow = 12; // 每层叶片数
+        const maxRadius = 180; // 底部最大半径
+
+        for (let i = 0; i < leafRows; i++) {
+            // y 从 0 (底部) 到 crownHeight (顶部)
+            const y = (i / leafRows) * crownHeight;
+            // 核心逻辑：半径随高度上升而减小，形成锥形 (Radius = Max * (1 - h/H))
+            const currentRadius = maxRadius * (1 - (i / leafRows));
+            const yPos = -(y + trunkHeight); // 向上的偏移量
+
+            for (let j = 0; j < leavesPerRow; j++) {
+                const angle = (j / leavesPerRow) * 360 + (i * 10); // 每层旋转偏移一点，更自然
+                const leaf = document.createElement('div');
+                leaf.className = 'leaf';
+                
+                // 将叶片放置在圆周上，并稍微向外倾斜
+                leaf.style.transform = `
+                    translateY(${yPos}px) 
+                    rotateY(${angle}deg) 
+                    translateZ(${currentRadius}px) 
+                    rotateX(-30deg)
+                `;
+                
+                // 颜色随机微调
+                const blueVal = 180 + Math.random() * 75;
+                leaf.style.borderBottomColor = `rgba(0, ${blueVal * 0.6}, ${blueVal}, 0.8)`;
+                
+                tree.appendChild(leaf);
+
+                // 3. 随机点缀礼物盒
+                if (Math.random() > 0.92) {
+                    createGift(yPos, angle, currentRadius);
+                }
+            }
+        }
+
+        function createGift(y, angle, radius) {
+            const colors = ['#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#ecf0f1'];
+            const size = 12 + Math.random() * 10;
+            const gift = document.createElement('div');
+            gift.className = 'gift';
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            // 礼物放在叶子边缘
+            gift.style.transform = `
+                translateY(${y - 10}px) 
+                rotateY(${angle}deg) 
+                translateZ(${radius + 5}px)
+            `;
+
+            for (let f = 0; f < 6; f++) {
+                const face = document.createElement('div');
+                face.className = 'gift-face';
+                face.style.backgroundColor = color;
+                // 简单的立方体展开样式
+                const rotations = [
+                    'rotateY(0deg)', 'rotateY(90deg)', 'rotateY(180deg)', 
+                    'rotateY(270deg)', 'rotateX(90deg)', 'rotateX(-90deg)'
+                ];
+                face.style.transform = `${rotations[f]} translateZ(${size/2}px)`;
+                face.style.width = size + 'px';
+                face.style.height = size + 'px';
+                gift.appendChild(face);
+            }
+            tree.appendChild(gift);
+        }
+
+        // 4. 雪花飘落 (右上 -> 左下)
+        const canvas = document.getElementById('snow-canvas');
+        const ctx = canvas.getContext('2d');
+        let w, h;
+        const particles = [];
+
+        function initCanvas() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+
+        class Snowflake {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * w * 1.5; // 扩展宽度以便从右上角切入
+                this.y = -20;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = -(Math.random() * 2 + 1); // 向左
+                this.speedY = Math.random() * 1.5 + 1.5; // 向下
+                this.opacity = Math.random() * 0.7 + 0.3;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.y > h || this.x < -20) this.reset();
+            }
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < 120; i++) particles.push(new Snowflake());
+
+        function draw() {
+            ctx.clearRect(0, 0, w, h);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(draw);
+        }
+
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+        draw();
+    </script>
+</body>
+</html>
